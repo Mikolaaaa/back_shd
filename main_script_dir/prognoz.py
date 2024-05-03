@@ -72,12 +72,10 @@ def prediction_linear_regression_shd(
     if df.shape[0] == 1:
         return None, df, error
 
-
     extra = []
     for name, group in df.groupby('object'):
         extra.append(name)
         group['time'] = pd.to_datetime(group['time'])
-
         # Выбор интервала (ручной/автоматический)
         if select_window_type == 'advanced_interval':
             interval, interval_num = dropdown_block['interval'], dropdown_block['interval_num']
@@ -99,18 +97,26 @@ def prediction_linear_regression_shd(
                 prominence = None
             last_date = group['time'].max()
             peaks_filtered, _ = find_peaks(group['Capacity usage(%)'], prominence=prominence)
+            corresponding_index = group.iloc[peaks_filtered].index
+            print(corresponding_index)
             troughs_filtered, _ = find_peaks(-group['Capacity usage(%)'], prominence=prominence)
             if len(troughs_filtered) != 0:
                 last_trough_time = group['time'].iloc[troughs_filtered[-1]]
             else:
                 troughs_filtered = np.array([0])
                 last_trough_time = group['time'].iloc[troughs_filtered[-1]]
-
             group = group[group['time'] >= last_trough_time]
-
             if len(peaks_filtered) != 0 and peaks_filtered[-1] > troughs_filtered[-1]:
-                last_peak_time = group['time'].loc[peaks_filtered[-1]]
-                group = group[group['time'] <= last_peak_time]
+                print('peaks_filtered[-1] = ', peaks_filtered[-1])
+                print('troughs_filtered[-1] = ', troughs_filtered[-1])
+                print('troughs_filtered = ', troughs_filtered)
+                print('corresponding_index = ', corresponding_index)
+                try:
+                    last_peak_time = group['time'].loc[peaks_filtered[-1]]
+                    group = group[group['time'] <= last_peak_time]
+                except:
+                    last_peak_time = group['time'].loc[corresponding_index[-1]]
+                    group = group[group['time'] <= last_peak_time]
 
         group_length = len(group)
 
@@ -123,7 +129,6 @@ def prediction_linear_regression_shd(
                 new_df = group.head(i)
                 group_datasets.append(new_df)
         extra.append(len(group_datasets))
-
 
         # цикл для облака точек по датафреймам
         for dataset in group_datasets:
@@ -208,6 +213,7 @@ def prediction_linear_regression_shd(
             else:
                 dict_list[lname].append(padel)
         return dict_list
+
 
     if sp_flag and len(all_predictions['StoragePool001']) != 0 and len(all_predictions['StoragePool002']) != 0 :
         all_predictions = pad_dict_list(all_predictions_for_main, 100)
